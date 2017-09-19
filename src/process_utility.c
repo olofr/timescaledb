@@ -819,11 +819,20 @@ timescaledb_ProcessUtility(Node *parsetree,
 	 * If we are restoring, we don't want to recurse to chunks or block
 	 * operations on chunks. If we do, the restore will fail.
 	 */
+	
 	if (!extension_is_loaded() || guc_restoring)
 	{
 		prev_ProcessUtility(parsetree, query_string, context, params, dest, completion_tag);
 		return;
 	}
+
+	/*
+	 * We only allow ALTER EXTENSION to run when there is a mismatch between SQL version
+	 * and .so version. This case happens in when upgrading the extension.
+	 */
+	
+	if (nodeTag(parsetree) != T_AlterExtensionStmt)
+		assert_extension_version();
 
 	switch (nodeTag(parsetree))
 	{
