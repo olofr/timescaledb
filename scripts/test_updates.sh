@@ -117,13 +117,19 @@ docker rm -f timescaledb-orig
 
 docker_run_vol timescaledb-updated ${UPDATE_VOLUME}:/var/lib/postgresql/data ${UPDATE_TO_IMAGE}:${UPDATE_TO_TAG}
 
+set +e 
+docker_pgcmd timescaledb-updated "\dt" &> ${PGTEST_TMPDIR}/mismatched_version.out
+cat ${PGTEST_TMPDIR}/mismatched_version.out
+set -e 
+
+
 echo "Executing ALTER EXTENSION timescaledb UPDATE"
 docker_pgcmd timescaledb-updated "ALTER EXTENSION timescaledb UPDATE"
 
 docker_exec timescaledb-updated "pg_dump -h localhost -U postgres -Fc single > /tmp/single.sql"
 docker cp timescaledb-updated:/tmp/single.sql ${PGTEST_TMPDIR}/single.sql
 
-echo "Restoring database on new version"
+Echo "Restoring database on new version"
 docker cp ${PGTEST_TMPDIR}/single.sql timescaledb-clean:/tmp/single.sql
 docker_exec timescaledb-clean "createdb -h localhost -U postgres single"
 docker_pgcmd timescaledb-clean "ALTER DATABASE single SET timescaledb.restoring='on'"

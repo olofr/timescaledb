@@ -411,19 +411,9 @@ static PlannedStmt *
 timescaledb_planner(Query *parse, int cursor_opts, ParamListInfo bound_params)
 {
 	PlannedStmt *plan_stmt = NULL;
+	
+	assert_extension_version();
 
-	/*
-	 * The only allowed command type when there is
-	 * a version mismatch is SELECT. It needs to be 
-	 * allowed to support upgrades. 
-	 */
-	
-	if (parse == NULL ||
-		parse->commandType != CMD_SELECT)
-	{
-		assert_extension_version();
-	}
-	
 	if (extension_is_loaded())
 	{
 		HypertableQueryCtx context = {

@@ -14,6 +14,7 @@
 
 #include "catalog.h"
 #include "extension.h"
+#include "guc.h"
 
 #define EXTENSION_PROXY_TABLE "cache_inval_extension"
 
@@ -21,7 +22,7 @@ static Oid	extension_proxy_oid = InvalidOid;
 
 /* Strings used to check extension SQL version against .so version */
 const char *timescaledb_build_version = TIMESCALEDB_EXT_BUILD_VERSION;
-const char *timescaledb_extension_name = TIMESCALEDB_EXT_NAME;
+static bool altering_extension = false;
 
 /*
  * ExtensionState tracks the state of extension metadata in the backend.
@@ -183,7 +184,6 @@ extension_invalidate(Oid relid)
 bool
 extension_is_loaded(void)
 {
-
 	if (EXTENSION_STATE_UNKNOWN == extstate || EXTENSION_STATE_TRANSITIONING == extstate)
 	{
 		/* status may have updated without a relcache invalidate event */
@@ -218,7 +218,8 @@ extension_is_loaded(void)
 
 /*
  * assert_extension_version - cause an error if the installed extension version
- * differs from the version the .so has. 
+ * differs from the version the .so has. Will not fail during an alter extension to 
+ * allow extension upgrade.
  */
 void
 assert_extension_version(void)
@@ -230,17 +231,19 @@ assert_extension_version(void)
 	ScanKeyData entry[1];
 	bool is_null = true;
 	static char *sql_version = NULL;
+
+	if (altering_extension || guc_restoring)
+		return;
 	
 	rel = heap_open(ExtensionRelationId, AccessShareLock);
 
 	ScanKeyInit(&entry[0],
 				Anum_pg_extension_extname,
 				BTEqualStrategyNumber, F_NAMEEQ,
-				CStringGetDatum(timescaledb_extension_name));
+				CStringGetDatum(EXTENSION_NAME));
 
 	scandesc = systable_beginscan(rel, ExtensionNameIndexId, true,
 								  NULL, 1, entry);
-
 	
 	tuple = systable_getnext(scandesc);
 	
@@ -259,7 +262,13 @@ assert_extension_version(void)
 	if (NULL == sql_version) 
 		elog (ERROR, "Error getting timescaledb version");
 
-	if (memcmp(sql_version, timescaledb_build_version, strlen(sql_version))){
-		elog(ERROR, "Mismatched timescaledb version. Shared object file %s, SQL %s",timescaledb_build_version, sql_version);
-	}
+	if (memcmp(sql_version, timescaledb_build_version, strlen(sql_version)))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("Mismatched timescaledb version. Shared object file %s, SQL %s",timescaledb_build_version, sql_version),
+				 errhint("Restart postgres and then run 'ALTER EXTENSION timescaledb UPDATE'")));
+}
+
+void set_altering_extension(bool state){
+	altering_extension = state;
 }

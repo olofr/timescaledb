@@ -831,9 +831,13 @@ timescaledb_ProcessUtility(Node *parsetree,
 	 * and .so version. This case happens in when upgrading the extension.
 	 */
 	
-	if (nodeTag(parsetree) != T_AlterExtensionStmt)
-		assert_extension_version();
-
+	if (nodeTag(parsetree) == T_AlterExtensionStmt)
+		set_altering_extension(true);
+	else
+		set_altering_extension(false);
+	
+	assert_extension_version();
+			
 	switch (nodeTag(parsetree))
 	{
 		case T_TruncateStmt:
@@ -892,6 +896,7 @@ timescaledb_ProcessUtility(Node *parsetree,
 	}
 
 	prev_ProcessUtility(parsetree, query_string, context, params, dest, completion_tag);
+	set_altering_extension(false);
 }
 
 extern void

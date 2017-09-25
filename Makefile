@@ -112,7 +112,7 @@ PGXS := $(shell $(PG_CONFIG) --pgxs)
 EXTRA_CLEAN = $(EXT_SQL_FILE) $(DEPS)
 
 include $(PGXS)
-override CFLAGS += -DINCLUDE_PACKAGE_SUPPORT=0 -MMD -DEXT_GIT_COMMIT=\"$(EXT_GIT_COMMIT)\" -DTIMESCALEDB_EXT_BUILD_VERSION=\"${EXT_VERSION}\" -DTIMESCALEDB_EXT_NAME=\"${EXTENSION}\"
+override CFLAGS += -DINCLUDE_PACKAGE_SUPPORT=0 -MMD -DEXT_GIT_COMMIT=\"$(EXT_GIT_COMMIT)\" -DTIMESCALEDB_EXT_BUILD_VERSION=\"${EXT_VERSION}\" #-DTIMESCALEDB_EXT_NAME=\"${EXTENSION}\"
 override pg_regress_clean_files = test/results/ test/regression.diffs test/regression.out tmp_check/ log/ $(TEST_CLUSTER)
 -include $(DEPS)
 
